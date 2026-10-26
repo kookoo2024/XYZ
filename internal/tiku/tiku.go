@@ -30,6 +30,7 @@ type Question struct {
 	LastUsed   string   `json:"last_used"`
 	CreatedAt  string   `json:"created_at"`
 	UpdatedAt  string   `json:"updated_at"`
+	Subject    string   `json:"subject,omitempty"` // 学科；空 = 数学（旧题）
 }
 
 // 题库选项列表项（用于筛选）
@@ -93,6 +94,10 @@ func (s *Service) handleTikuList(w http.ResponseWriter, r *http.Request) {
 	if v := r.URL.Query().Get("keyword"); v != "" {
 		where = append(where, "(stem LIKE ? OR solution LIKE ? OR tags LIKE ?)")
 		args = append(args, "%"+v+"%", "%"+v+"%", "%"+v+"%")
+	}
+	if v := r.URL.Query().Get("subject"); v != "" {
+		where = append(where, "(CASE WHEN subject='' THEN '数学' ELSE subject END) = ?")
+		args = append(args, v)
 	}
 	// 多选筛选（逗号分隔）
 	if v := r.URL.Query().Get("type"); v != "" {
@@ -253,11 +258,11 @@ func (s *Service) handleTikuCreate(w http.ResponseWriter, r *http.Request) {
 
 	result, err := s.db.Exec(`
 		INSERT INTO questions (type, stem, options, answer, solution, chapter, section, 
-		       difficulty, tags, images, source, use_count, last_used, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, '', ?, ?)`,
+		       difficulty, tags, images, source, use_count, last_used, created_at, updated_at, subject)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, '', ?, ?, ?)`,
 		q.Type, q.Stem, string(optionsJSON), q.Answer, q.Solution,
 		q.Chapter, q.Section, q.Difficulty,
-		string(tagsJSON), string(imagesJSON), q.Source, q.CreatedAt, q.UpdatedAt)
+		string(tagsJSON), string(imagesJSON), q.Source, q.CreatedAt, q.UpdatedAt, q.Subject)
 
 	if err != nil {
 		writeJSON(w, map[string]interface{}{"error": err.Error()})
@@ -298,11 +303,11 @@ func (s *Service) handleTikuUpdate(w http.ResponseWriter, r *http.Request) {
 		UPDATE questions SET 
 			type=?, stem=?, options=?, answer=?, solution=?, 
 			chapter=?, section=?, difficulty=?, tags=?, images=?, 
-			source=?, updated_at=?
+			source=?, updated_at=?, subject=COALESCE(NULLIF(?, ''), subject)
 		WHERE id=?`,
 		q.Type, q.Stem, string(optionsJSON), q.Answer, q.Solution,
 		q.Chapter, q.Section, q.Difficulty,
-		string(tagsJSON), string(imagesJSON), q.Source, now, q.ID)
+		string(tagsJSON), string(imagesJSON), q.Source, now, q.Subject, q.ID)
 
 	if err != nil {
 		writeJSON(w, map[string]interface{}{"error": err.Error()})
