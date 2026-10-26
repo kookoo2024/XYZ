@@ -8,10 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"xyz/internal/auth"
 	"xyz/internal/config"
 	"xyz/internal/files"
 	"xyz/internal/httpx"
 	"xyz/internal/lesson"
+	"xyz/internal/org"
 	"xyz/internal/tiku"
 	"xyz/internal/web"
 )
@@ -22,6 +24,9 @@ var Version = "dev"
 // New 创建 http.Server。新模块（班级、轮播、PK……）都在这里注册一行即可。
 func New(cfg *config.Config, db *sql.DB) *http.Server {
 	mux := http.NewServeMux()
+	au := auth.New(db, cfg)
+	au.Register(mux)
+	org.New(db).Register(mux)
 	web.Register(mux)
 	tiku.New(db, cfg.DataDir).Register(mux)
 	lesson.New(db).Register(mux)
@@ -34,11 +39,11 @@ func New(cfg *config.Config, db *sql.DB) *http.Server {
 			"rootDir": cfg.DataDir,
 			"version": Version,
 		}
-	}).Register(mux) // 含 "/" 兜底，放最后
+	}, au.SignPath).Register(mux) // 含 "/" 兜底，放最后
 
 	return &http.Server{
 		Addr:              cfg.Listen,
-		Handler:           httpx.Recover(httpx.Logger(mux)),
+		Handler:           httpx.Recover(httpx.Logger(au.Middleware(mux))),
 		ReadHeaderTimeout: 15 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		// 不设 ReadTimeout/WriteTimeout：大文件上传和视频播放可能很久
