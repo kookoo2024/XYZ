@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理后台 - XYZ</title>
+<link rel="stylesheet" href="/assets/xyz.css">
+<style>
+.top{display:flex;align-items:center;gap:14px;padding:12px 22px;background:rgba(255,255,255,.9);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;backdrop-filter:blur(10px)}
+.top .logo{font-weight:700;font-size:17px;color:var(--t1);text-decoration:none}
+.top .who{margin-left:auto;color:var(--t2);display:flex;gap:10px;align-items:center}
+.wrap{display:flex;max-width:1200px;margin:0 auto;padding:22px;gap:22px}
+.side{width:170px;flex-shrink:0}
+.side a{display:block;padding:9px 12px;border-radius:var(--rs);color:var(--t2);cursor:pointer;margin-bottom:2px;text-decoration:none}
+.side a:hover{background:#fff}
+.side a.on{background:#fff;color:var(--accent);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.side .sep{height:1px;background:var(--border);margin:10px 4px}
+.main{flex:1;min-width:0}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.head h2{font-size:19px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.cls{cursor:pointer;transition:.15s}.cls:hover{border-color:var(--accent);transform:translateY(-1px)}
+.cls .n{font-size:18px;font-weight:600}.cls .m{color:var(--t3);margin-top:6px;font-size:13px;line-height:1.7}
+.matrix td,.matrix th{padding:6px 8px;white-space:nowrap}
+.matrix select{padding:4px 6px;min-width:90px;font-size:13px}
+.matrix .has{background:#f5f3ff}
+.empty{padding:40px;text-align:center;color:var(--t3)}
+@media(max-width:760px){.wrap{flex-direction:column;padding:12px}.side{width:auto;display:flex;flex-wrap:wrap;gap:4px}.side .sep{display:none}}
+</style>
+</head>
+<body>
+<div class="top">
+  <a class="logo" href="/">🔥 XYZ</a><span class="muted" id="schoolName"></span>
+  <div class="who"><span id="me"></span><a class="btn sm" href="/">返回首页</a><button class="btn sm" id="logout">退出</button></div>
+</div>
+<div class="wrap">
+  <nav class="side" id="side"></nav>
+  <main class="main" id="main"><div class="empty">加载中…</div></main>
+</div>
+<script src="/assets/xyz.js"></script>
+<script>
+let ME = null, SUBJECTS = [], CLASSES = [], TEACHERS = [];
+const ROLE = { admin: '管理员', teacher: '教师', student: '学生' };
+const isAdmin = () => ME && ME.role === 'admin';
+
+const TABS = [
+  ['mine', '我的班级', () => true],
+  ['classes', '班级', () => true],
+  ['students', '学生名单', () => true],
+  ['teaching', '任课安排', () => true],
+  ['-'],
+  ['users', '教师账号', isAdmin],
+  ['subjects', '学科', isAdmin],
+  ['-'],
+  ['account', '我的账号', () => true],
+];
+let cur = location.hash.slice(1) || '';
+
+async function loadBase() {
+  [SUBJECTS, CLASSES, TEACHERS] = await Promise.all([
+    api('GET', '/api/v1/subjects'), api('GET', '/api/v1/classes?archived=1'), api('GET', '/api/v1/users'),
+  ]);
+  TEACHERS = TEACHERS.filter(u => u.role !== 'student' && !u.disabled);
+}
+function renderSide() {
+  $('#side').innerHTML = TABS.filter(t => t[0] === '-' || t[2]()).map(t => t[0] === '-' ? '<div class="sep"></div>' :
+    `<a class="${t[0] === cur ? 'on' : ''}" href="#${t[0]}">${t[1]}</a>`).join('');
+}
+async function show(tab) {
+  cur = tab; renderSide();
+  try { await VIEWS[tab](); } catch (e) { $('#main').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+window.addEventListener('hashchange', () => show(location.hash.slice(1) || 'mine'));
+const teacherOpts = (empty = '（无）') => [['0', empty], ...TEACHERS.map(t => [t.id, t.name])];
+const activeClasses = () => CLASSES.filter(c => !c.archived);
+
+const VIEWS = {
+  // ===== 我的班级 =====
+  async mine() {
+    if (ME.local) {
+      $('#main').innerHTML = `<div class="head"><h2>欢迎</h2></div><div class="card" style="line-height:1.9">
+        你正在<b>服务器本机</b>使用（免登录，按管理员身份）。<br>
+        建议先到「教师账号」给自己和同事建账号，再到「班级」「学生名单」「任课安排」录入信息。<br>
+        之后在别的电脑、手机上用账号登录即可。</div>`;
+      return;
+    }
+    const list = await api('GET', '/api/v1/me/classes');
+    $('#main').innerHTML = `<div class="head"><h2>我的班级</h2></div>` + (list.length ? `<div class="grid">${list.map(c => `
+      <div class="card cls" data-id="${c.id}"><div class="n">${esc(c.name)} ${c.is_head ? '<span class="tag admin">班主任</span>' : ''}</div>
+      <div class="m">${esc(c.grade)} · ${c.student_count} 人<br>${c.subjects.length ? '任教：' + c.subjects.map(esc).join('、') : ''}</div></div>`).join('')}</div>`
+      : `<div class="card empty">还没有分配班级。请管理员在「班级」里设置班主任，或在「任课安排」里分配学科。</div>`);
+    document.querySelectorAll('.cls').forEach(el => el.onclick = () => { STU_CLASS = +el.dataset.id; location.hash = 'students'; });
+  },
+
+  // ===== 班级 =====
+  async classes() {
+    await loadBase();
+    const rows = CLASSES.map(c => `<tr>
+      <td><b>${esc(c.name)}</b> ${c.archived ? '<span class="tag off">已归档</span>' : ''}</td><td>${esc(c.grade)}</td><td>${c.enroll_year || ''}</td>
+      <td>${esc(c.head_teacher_name) || '<span class="muted">未设置</span>'}</td><td>${c.student_count}</td>
+      <td style="text-align:right"><button class="btn sm" data-stu="${c.id}">名单</button>
+      ${isAdmin() ? `<button class="btn sm" data-edit="${c.id}">编辑</button><button class="btn sm danger" data-del="${c.id}">删除</button>` : ''}</td></tr>`).join('');
+    $('#main').innerHTML = `<div class="head"><h2>班级</h2>${isAdmin() ? '<button class="btn primary right" id="add">＋ 新建班级</button>' : ''}</div>
+      <div class="card" style="padding:6px 10px">${CLASSES.length ? `<table><tr><th>班级</th><th>年级</th><th>入学年份</th><th>班主任</th><th>人数</th><th></th></tr>${rows}</table>` : '<div class="empty">还没有班级</div>'}</div>`;
+    const form = c => formModal(c ? '编辑班级' : '新建班级', [
+      { name: 'name', label: '班级名称', value: c?.name, placeholder: '如：高二(11)班 / 211班' },
+      { name: 'grade', label: '年级', value: c?.grade, type: 'select', options: [['', '—'], ['高一', '高一'], ['高二', '高二'], ['高三', '高三'], ['初一', '初一'], ['初二', '初二'], ['初三', '初三']] },
+      { name: 'enroll_year', label: '入学年份', value: c?.enroll_year || new Date().getFullYear(), type: 'number' },
+      { name: 'head_teacher_id', label: '班主任', type: 'select', value: c?.head_teacher_id || 0, options: teacherOpts('未设置') },
+      ...(c ? [{ name: 'archived', label: '状态', type: 'checkbox', value: c.archived, text: '已归档（毕业班，不再出现在列表中）' }] : []),
+    ]);
+    const payload = v => ({ name: v.name, grade: v.grade, enroll_year: +v.enroll_year || 0, head_teacher_id: +v.head_teacher_id, archived: !!v.archived });
+    if ($('#add')) $('#add').onclick = async () => { const v = await form(); if (!v) return;
+      try { await api('POST', '/api/v1/classes', payload(v)); toast('已创建'); show('classes'); } catch (e) { toast(e.message, 1); } };
+    document.querySelectorAll('[data-edit]').forEach(b => b.onclick = async () => {
+      const c = CLASSES.find(x => x.id == b.dataset.edit); const v = await form(c); if (!v) return;
+      try { await api('PUT', '/api/v1/classes/' + c.id, payload(v)); toast('已保存'); show('classes'); } catch (e) { toast(e.message, 1); } });
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+      if (!confirm('删除这个班级？（只能删除空班级）')) return;
+      try { await api('DELETE', '/api/v1/classes/' + b.dataset.del); toast('已删除'); show('classes'); } catch (e) { toast(e.message, 1); } });
+    document.querySelectorAll('[data-stu]').forEach(b => b.onclick = () => { STU_CLASS = +b.dataset.stu; location.hash = 'students'; });
+  },
+
+  // ===== 学生名单 =====
+  async students() {
+    await loadBase();
+    const act = activeClasses();
+    if (!act.length) { $('#main').innerHTML = `<div class="head"><h2>学生名单</h2></div><div class="card empty">请先在「班级」里建班。</div>`; return; }
+    if (!act.find(c => c.id === STU_CLASS)) STU_CLASS = act[0].id;
+    const cls = act.find(c => c.id === STU_CLASS);
+    const canEdit = isAdmin() || cls.head_teacher_id === ME.id;
+    const list = await api('GET', `/api/v1/classes/${STU_CLASS}/students`);
+    const boys = list.filter(s => s.gender === '男').length, girls = list.filter(s => s.gender === '女').length;
+    $('#main').innerHTML = `<div class="head"><h2>学生名单</h2>
+        <select id="cls" style="width:auto">${act.map(c => `<option value="${c.id}" ${c.id === STU_CLASS ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+        <span class="muted">${list.length} 人${boys + girls ? `（男 ${boys} · 女 ${girls}）` : ''}</span>
+        ${canEdit ? '<button class="btn right" id="imp">📋 粘贴导入</button><button class="btn primary" id="add">＋ 添加学生</button>' : '<span class="muted right">只有班主任和管理员可以修改名单</span>'}</div>
+      <div class="card" style="padding:6px 10px">${list.length ? `<table><tr><th style="width:60px">#</th><th>学号</th><th>姓名</th><th>性别</th><th>备注</th><th></th></tr>
+        ${list.map((s, i) => `<tr><td class="muted">${i + 1}</td><td>${esc(s.student_no)}</td><td><b>${esc(s.name)}</b></td><td>${esc(s.gender)}</td><td class="muted">${esc(s.note)}</td>
+        <td style="text-align:right">${canEdit ? `<button class="btn sm" data-edit="${s.id}">编辑</button><button class="btn sm danger" data-del="${s.id}">删除</button>` : ''}</td></tr>`).join('')}</table>`
+        : `<div class="empty">名单是空的。${canEdit ? '点右上角「粘贴导入」，从 Excel 复制学号、姓名、性别几列直接粘贴即可。' : ''}</div>`}</div>`;
+    $('#cls').onchange = e => { STU_CLASS = +e.target.value; show('students'); };
+    if (!canEdit) return;
+    const form = s => formModal(s ? '编辑学生' : '添加学生', [
+      { name: 'student_no', label: '学号', value: s?.student_no },
+      { name: 'name', label: '姓名', value: s?.name },
+      { name: 'gender', label: '性别', type: 'select', value: s?.gender || '', options: [['', '—'], ['男', '男'], ['女', '女']] },
+      { name: 'note', label: '备注', value: s?.note },
+      ...(s ? [{ name: 'class_id', label: '所在班级（转班）', type: 'select', value: s.class_id, options: act.map(c => [c.id, c.name]) }] : []),
+    ]);
+    $('#add').onclick = async () => { const v = await form(); if (!v) return;
+      try { await api('POST', `/api/v1/classes/${STU_CLASS}/students`, v); toast('已添加'); show('students'); } catch (e) { toast(e.message, 1); } };
+    $('#imp').onclick = async () => {
+      const v = await formModal('粘贴导入 · ' + cls.name, [
+        { name: 'text', label: '从 Excel 复制几列粘贴到这里，每行一个学生', type: 'textarea', rows: 12, placeholder: '20250101\t张三\t男\n20250102\t李四\t女\n……\n（只有姓名也可以）' },
+        { name: 'replace', label: '方式', type: 'checkbox', value: false, text: '清空原名单后导入（不勾选则合并：学号相同的会更新）' },
+      ], '导入');
+      if (!v || !v.text.trim()) return;
+      if (v.replace && !confirm('确定清空 ' + cls.name + ' 现有名单再导入？')) return;
+      try { const r = await api('POST', `/api/v1/classes/${STU_CLASS}/students/import`, { text: v.text, replace: v.replace }); toast(`新增 ${r.added} 人，更新 ${r.updated} 人`); show('students'); }
+      catch (e) { toast(e.message, 1); }
+    };
+    document.querySelectorAll('[data-edit]').forEach(b => b.onclick = async () => {
+      const s = list.find(x => x.id == b.dataset.edit); const v = await form(s); if (!v) return; v.class_id = +v.class_id;
+      try { await api('PUT', '/api/v1/students/' + s.id, v); toast('已保存'); show('students'); } catch (e) { toast(e.message, 1); } });
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+      const s = list.find(x => x.id == b.dataset.del); if (!confirm('删除学生 ' + s.name + '？')) return;
+      try { await api('DELETE', '/api/v1/students/' + s.id); toast('已删除'); show('students'); } catch (e) { toast(e.message, 1); } });
+  },
+
+  // ===== 任课安排：班级 × 学科 矩阵 =====
+  async teaching() {
+    await loadBase();
+    const act = activeClasses();
+    if (!act.length) { $('#main').innerHTML = `<div class="head"><h2>任课安排</h2></div><div class="card empty">请先在「班级」里建班。</div>`; return; }
+    const map = {}; (await api('GET', '/api/v1/teaching')).forEach(t => map[t.class_id + '_' + t.subject_id] = t);
+    const cell = (c, s) => { const t = map[c.id + '_' + s.id];
+      return isAdmin() ? `<td class="${t ? 'has' : ''}"><select data-c="${c.id}" data-s="${s.id}">${teacherOpts('—').map(([v, n]) => `<option value="${v}" ${t && t.teacher_id == v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></td>`
+        : `<td class="${t ? 'has' : ''}">${t ? esc(t.teacher_name) : '<span class="muted">—</span>'}</td>`; };
+    $('#main').innerHTML = `<div class="head"><h2>任课安排</h2><span class="muted">${isAdmin() ? '直接在表格里选老师，自动保存' : '只读，修改请找管理员'}</span></div>
+      <div class="card" style="padding:6px;overflow:auto"><table class="matrix"><tr><th>班级</th><th>班主任</th>${SUBJECTS.map(s => `<th>${esc(s.name)}</th>`).join('')}</tr>
+      ${act.map(c => `<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.head_teacher_name) || '<span class="muted">—</span>'}</td>${SUBJECTS.map(s => cell(c, s)).join('')}</tr>`).join('')}</table></div>`;
+    document.querySelectorAll('.matrix select').forEach(sel => sel.onchange = async () => {
+      try { await api('PUT', '/api/v1/teaching', { class_id: +sel.dataset.c, subject_id: +sel.dataset.s, teacher_id: +sel.value });
+        sel.parentElement.className = +sel.value ? 'has' : ''; toast('已保存'); } catch (e) { toast(e.message, 1); } });
+  },
+
+  // ===== 教师账号 =====
+  async users() {
+    const list = await api('GET', '/api/v1/users');
+    $('#main').innerHTML = `<div class="head"><h2>教师账号</h2><button class="btn primary right" id="add">＋ 新建账号</button></div>
+      <div class="card" style="padding:6px 10px"><table><tr><th>姓名</th><th>用户名</th><th>角色</th><th>最近登录</th><th></th></tr>
+      ${list.map(u => `<tr><td><b>${esc(u.name)}</b></td><td>${esc(u.username)}</td>
+        <td><span class="tag ${u.role}">${ROLE[u.role]}</span> ${u.disabled ? '<span class="tag off">已停用</span>' : ''}</td>
+        <td class="muted">${esc(u.last_login) || '从未'}</td>
+        <td style="text-align:right"><button class="btn sm" data-edit="${u.id}">编辑</button><button class="btn sm" data-pw="${u.id}">重置密码</button>
+        ${u.id !== ME.id ? `<button class="btn sm danger" data-del="${u.id}">删除</button>` : ''}</td></tr>`).join('')}</table></div>
+      <p class="muted" style="margin-top:12px;line-height:1.8">新建账号后把用户名和初始密码告诉同事，登录后可在「我的账号」里自己改密码。</p>`;
+    const roleOpts = [['teacher', '教师'], ['admin', '管理员'], ['student', '学生']];
+    $('#add').onclick = async () => {
+      const v = await formModal('新建账号', [
+        { name: 'name', label: '姓名', placeholder: '如：王老师' },
+        { name: 'username', label: '用户名（登录用，建议拼音）', placeholder: 'wang' },
+        { name: 'password', label: '初始密码（至少 6 位）', value: String(Math.floor(100000 + Math.random() * 900000)) },
+        { name: 'role', label: '角色', type: 'select', value: 'teacher', options: roleOpts },
+      ], '创建');
+      if (!v) return;
+      try { await api('POST', '/api/v1/users', v); toast(`已创建：${v.username} / ${v.password}`); show('users'); } catch (e) { toast(e.message, 1); }
+    };
+    document.querySelectorAll('[data-edit]').forEach(b => b.onclick = async () => {
+      const u = list.find(x => x.id == b.dataset.edit);
+      const v = await formModal('编辑账号 · ' + u.username, [
+        { name: 'name', label: '姓名', value: u.name },
+        { name: 'role', label: '角色', type: 'select', value: u.role, options: roleOpts },
+        { name: 'disabled', label: '状态', type: 'checkbox', value: u.disabled, text: '停用（不能登录，已登录的立即下线）' },
+      ]);
+      if (!v) return;
+      try { await api('PUT', '/api/v1/users/' + u.id, v); toast('已保存'); show('users'); } catch (e) { toast(e.message, 1); }
+    });
+    document.querySelectorAll('[data-pw]').forEach(b => b.onclick = async () => {
+      const u = list.find(x => x.id == b.dataset.pw);
+      const v = await formModal('重置密码 · ' + u.name, [{ name: 'password', label: '新密码', value: String(Math.floor(100000 + Math.random() * 900000)) }], '重置');
+      if (!v) return;
+      try { await api('PUT', '/api/v1/users/' + u.id, { password: v.password }); toast('新密码：' + v.password); } catch (e) { toast(e.message, 1); }
+    });
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+      const u = list.find(x => x.id == b.dataset.del); if (!confirm(`删除账号 ${u.name}？其任课安排也会一并删除。若只是暂时不用，建议「停用」。`)) return;
+      try { await api('DELETE', '/api/v1/users/' + u.id); toast('已删除'); show('users'); } catch (e) { toast(e.message, 1); }
+    });
+  },
+
+  // ===== 学科 =====
+  async subjects() {
+    await loadBase();
+    $('#main').innerHTML = `<div class="head"><h2>学科</h2><button class="btn primary right" id="add">＋ 添加学科</button></div>
+      <div class="card" style="padding:6px 10px"><table><tr><th>排序</th><th>学科</th><th></th></tr>
+      ${SUBJECTS.map(s => `<tr><td class="muted">${s.sort}</td><td><b>${esc(s.name)}</b></td><td style="text-align:right">
+        <button class="btn sm" data-edit="${s.id}">编辑</button><button class="btn sm danger" data-del="${s.id}">删除</button></td></tr>`).join('')}</table></div>`;
+    const form = s => formModal(s ? '编辑学科' : '添加学科', [
+      { name: 'name', label: '学科名称', value: s?.name }, { name: 'sort', label: '排序（小的在前）', type: 'number', value: s?.sort ?? '' }]);
+    $('#add').onclick = async () => { const v = await form(); if (!v) return;
+      try { await api('POST', '/api/v1/subjects', { name: v.name, sort: +v.sort || 0 }); show('subjects'); } catch (e) { toast(e.message, 1); } };
+    document.querySelectorAll('[data-edit]').forEach(b => b.onclick = async () => {
+      const s = SUBJECTS.find(x => x.id == b.dataset.edit); const v = await form(s); if (!v) return;
+      try { await api('PUT', '/api/v1/subjects/' + s.id, { name: v.name, sort: +v.sort || 0 }); show('subjects'); } catch (e) { toast(e.message, 1); } });
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+      const s = SUBJECTS.find(x => x.id == b.dataset.del); if (!confirm(`删除学科「${s.name}」？相关任课安排会一并删除。`)) return;
+      try { await api('DELETE', '/api/v1/subjects/' + s.id); show('subjects'); } catch (e) { toast(e.message, 1); } });
+  },
+
+  // ===== 我的账号 =====
+  async account() {
+    if (ME.local) {
+      $('#main').innerHTML = `<div class="head"><h2>我的账号</h2></div><div class="card" style="line-height:1.9">
+        服务器本机免登录，没有个人账号。<a href="/login">登录个人账号</a>后可在这里修改密码。<br>
+        <span class="muted">如需关闭本机免登录，把 xyz.json 里 auth.trust_localhost 改为 false 后重启。</span></div>`;
+      return;
+    }
+    $('#main').innerHTML = `<div class="head"><h2>我的账号</h2></div><div class="card" style="max-width:420px">
+      <p style="margin-bottom:14px">${esc(ME.name)}（${esc(ME.username)}） <span class="tag ${ME.role}">${ROLE[ME.role]}</span></p>
+      <div class="field"><label>原密码</label><input id="old" type="password"></div>
+      <div class="field"><label>新密码（至少 6 位）</label><input id="nw" type="password"></div>
+      <div class="field"><label>再输一次</label><input id="nw2" type="password"></div>
+      <button class="btn primary" id="save">修改密码</button></div>`;
+    $('#save').onclick = async () => {
+      if ($('#nw').value !== $('#nw2').value) { toast('两次密码不一致', 1); return; }
+      try { await api('POST', '/api/v1/auth/password', { old: $('#old').value, new: $('#nw').value }); toast('密码已修改'); $('#old').value = $('#nw').value = $('#nw2').value = ''; }
+      catch (e) { toast(e.message, 1); }
+    };
+  },
+};
+let STU_CLASS = 0;
+
+(async () => {
+  ME = await api('GET', '/api/v1/auth/me');
+  if (!ME) { location.href = '/login?next=/admin'; return; }
+  if (ME.role === 'student') { document.body.innerHTML = '<div class="empty">学生账号暂无管理权限。<a href="/">返回</a></div>'; return; }
+  $('#me').innerHTML = `${esc(ME.name)} <span class="tag ${ME.role}">${ROLE[ME.role]}</span>`;
+  if (ME.local) $('#logout').textContent = '登录';
+  $('#logout').onclick = async () => { if (!ME.local) await api('POST', '/api/v1/auth/logout'); location.href = '/login'; };
+  const sc = await api('GET', '/api/v1/school'); $('#schoolName').textContent = sc.name;
+  await loadBase();
+  show(cur && VIEWS[cur] && TABS.find(t => t[0] === cur && t[2]()) ? cur : 'mine');
+})();
+</script>
+</body>
+</html>
