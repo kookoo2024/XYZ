@@ -3,7 +3,7 @@ chcp 65001 >nul
 SET CGO_ENABLED=0
 SET GOOS=windows
 SET GOARCH=amd64
-SET VERSION=2.0.0
+SET VERSION=2.3.0
 
 echo [XYZ] 正在编译...
 go test ./... || goto :fail
