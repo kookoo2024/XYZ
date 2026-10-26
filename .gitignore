@@ -1,0 +1,15 @@
+# 编译产物
+*.exe
+*.exe~
+/xyz
+# 本机配置（含路径），模板见 xyz.example.json
+/xyz.json
+# 运行数据
+/data/
+.xyz/
+# 其它
+node_modules/
+__pycache__/
+*.pyc
+.playwright-cli/
+output/
