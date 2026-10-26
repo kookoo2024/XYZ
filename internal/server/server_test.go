@@ -55,6 +55,7 @@ func setup(t *testing.T) (*httptest.Server, *config.Config, *sql.DB) {
 	}
 	store.ImportLegacy(db, dir)
 	store.ImportLegacy(db, dir) // 第二次不能重复导入
+	store.EnsureDefaults(db, "")
 	ts := httptest.NewServer(New(cfg, db).Handler)
 	t.Cleanup(func() { ts.Close(); db.Close() })
 	return ts, cfg, db
