@@ -25,7 +25,7 @@
     const box = document.createElement('div'); box.id = 'xyz-ub';
     const roleName = { admin: '管理员', teacher: '教师', student: '学生' }[u.role] || u.role;
     box.innerHTML = `<div class="menu"><div class="who">${u.name}（${roleName}）${u.local ? '<br><small>服务器本机，免登录</small>' : ''}</div>
-      <a href="/admin">⚙️ 管理后台</a>${u.local ? '<a href="/login">🔑 登录个人账号</a>' : '<a data-out>🚪 退出登录</a>'}</div>
+      <a href="/screen">🖥️ 大屏模式</a><a href="/admin">⚙️ 管理后台</a>${u.local ? '<a href="/login">🔑 登录个人账号</a>' : '<a data-out>🚪 退出登录</a>'}</div>
       <div class="av" title="${u.name}">${(u.name || '?').slice(-1)}</div>`;
     document.body.appendChild(box);
     box.querySelector('.av').onclick = () => box.classList.toggle('open');
