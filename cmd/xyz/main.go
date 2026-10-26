@@ -39,6 +39,9 @@ func main() {
 		fatal("打开数据库失败: " + err.Error())
 	}
 	store.ImportLegacy(db, cfg.DataDir)
+	if err := store.EnsureDefaults(db, cfg.SchoolName); err != nil {
+		fatal("初始化学校信息失败: " + err.Error())
+	}
 
 	if *doBackup {
 		p, err := backup.Now(db, cfg.BackupDir())
