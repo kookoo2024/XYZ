@@ -1,0 +1,29 @@
+/* XYZ 新页面公共样式（与原 FireCloud 配色一致） */
+:root{--bg0:#f3f4f6;--bg1:#fff;--bg2:#e5e7eb;--accent:#7c6aff;--accent2:#a78bfa;--t1:#111827;--t2:#4b5563;--t3:#6b7280;--border:rgba(0,0,0,.08);--danger:#ef4444;--ok:#10b981;--r:12px;--rs:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg0);color:var(--t1);min-height:100vh;font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{border:1px solid var(--bg2);border-radius:var(--rs);padding:8px 10px;background:#fff;outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,106,255,.12)}
+.btn{border:1px solid var(--bg2);background:#fff;border-radius:var(--rs);padding:7px 14px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#6a57f5;color:#fff}
+.btn.danger{color:var(--danger)}.btn.danger:hover{border-color:var(--danger)}
+.btn.sm{padding:3px 9px;font-size:12px}
+.card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.muted{color:var(--t3)}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;background:var(--bg0);color:var(--t2)}
+.tag.admin{background:#ede9fe;color:#6d28d9}.tag.teacher{background:#e0f2fe;color:#0369a1}.tag.student{background:#dcfce7;color:#15803d}.tag.off{background:#fee2e2;color:#b91c1c}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border)}
+th{color:var(--t3);font-weight:500;font-size:13px}
+tr:hover td{background:#fafafa}
+.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#111827;color:#fff;padding:9px 18px;border-radius:99px;z-index:9999;font-size:13px;opacity:0;transition:.25s;pointer-events:none}
+.toast.show{opacity:1}.toast.err{background:var(--danger)}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:900}
+.modal{background:#fff;border-radius:16px;padding:22px;width:min(460px,92vw);max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:14px}
+.field{margin-bottom:12px}.field label{display:block;font-size:13px;color:var(--t2);margin-bottom:5px}
+.row{display:flex;gap:10px;align-items:center}
+.right{margin-left:auto}
