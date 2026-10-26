@@ -16,6 +16,7 @@ import (
 	"xyz/internal/org"
 	"xyz/internal/screen"
 	"xyz/internal/tiku"
+	"xyz/internal/update"
 	"xyz/internal/web"
 )
 
@@ -23,12 +24,16 @@ import (
 var Version = "dev"
 
 // New 创建 http.Server。新模块（班级、轮播、PK……）都在这里注册一行即可。
-func New(cfg *config.Config, db *sql.DB) *http.Server {
+func New(cfg *config.Config, db *sql.DB, up *update.Service) *http.Server {
+	if up == nil {
+		up = update.New(update.Options{Repo: cfg.Update.Repo, Mirrors: cfg.Update.Mirrors, Current: Version}, nil)
+	}
 	mux := http.NewServeMux()
 	au := auth.New(db, cfg)
 	au.Register(mux)
 	org.New(db).Register(mux)
 	screen.New(db, cfg).Register(mux)
+	up.Register(mux)
 	web.Register(mux)
 	tiku.New(db, cfg.DataDir).Register(mux)
 	lesson.New(db).Register(mux)
