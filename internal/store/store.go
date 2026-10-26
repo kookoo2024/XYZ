@@ -100,6 +100,102 @@ var migrations = []string{
 		detail TEXT NOT NULL DEFAULT ''
 	);
 	`,
+	// v2：登录与组织模型（学校、用户、会话、学科、班级、学生、任课）
+	`
+	CREATE TABLE IF NOT EXISTS schools (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL DEFAULT ''
+	);
+
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		school_id INTEGER NOT NULL REFERENCES schools(id),
+		username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+		name TEXT NOT NULL DEFAULT '',
+		password_hash TEXT NOT NULL DEFAULT '',
+		role TEXT NOT NULL DEFAULT 'teacher',
+		disabled INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL DEFAULT '',
+		last_login TEXT NOT NULL DEFAULT ''
+	);
+
+	CREATE TABLE IF NOT EXISTS sessions (
+		token_hash TEXT PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		expires_at INTEGER NOT NULL,
+		created_at INTEGER NOT NULL,
+		ip TEXT NOT NULL DEFAULT '',
+		user_agent TEXT NOT NULL DEFAULT ''
+	);
+	CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+	CREATE TABLE IF NOT EXISTS subjects (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		school_id INTEGER NOT NULL REFERENCES schools(id),
+		name TEXT NOT NULL,
+		sort INTEGER NOT NULL DEFAULT 0,
+		UNIQUE(school_id, name)
+	);
+
+	CREATE TABLE IF NOT EXISTS classes (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		school_id INTEGER NOT NULL REFERENCES schools(id),
+		name TEXT NOT NULL,
+		grade TEXT NOT NULL DEFAULT '',
+		enroll_year INTEGER NOT NULL DEFAULT 0,
+		head_teacher_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+		archived INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL DEFAULT ''
+	);
+	CREATE INDEX IF NOT EXISTS idx_classes_school ON classes(school_id);
+
+	CREATE TABLE IF NOT EXISTS students (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		school_id INTEGER NOT NULL REFERENCES schools(id),
+		class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+		name TEXT NOT NULL,
+		student_no TEXT NOT NULL DEFAULT '',
+		gender TEXT NOT NULL DEFAULT '',
+		note TEXT NOT NULL DEFAULT '',
+		user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+		created_at TEXT NOT NULL DEFAULT ''
+	);
+	CREATE INDEX IF NOT EXISTS idx_students_class ON students(class_id);
+	CREATE UNIQUE INDEX IF NOT EXISTS uq_students_no ON students(class_id, student_no) WHERE student_no != '';
+
+	CREATE TABLE IF NOT EXISTS teaching (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+		subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+		teacher_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		UNIQUE(class_id, subject_id)
+	);
+	CREATE INDEX IF NOT EXISTS idx_teaching_teacher ON teaching(teacher_id);
+	`,
+}
+
+// DefaultSubjects 新学校默认学科（可在管理后台增删）。
+var DefaultSubjects = []string{"语文", "数学", "英语", "物理", "化学", "生物", "政治", "历史", "地理", "信息技术", "通用技术", "体育", "音乐", "美术"}
+
+// EnsureDefaults 确保至少有一所学校（id=1）及默认学科；学校名随配置更新。
+func EnsureDefaults(db *sql.DB, schoolName string) error {
+	var n int
+	db.QueryRow("SELECT COUNT(*) FROM schools").Scan(&n)
+	if n == 0 {
+		if schoolName == "" {
+			schoolName = "我的学校"
+		}
+		if _, err := db.Exec("INSERT INTO schools(id,name,created_at) VALUES(1,?,datetime('now','localtime'))", schoolName); err != nil {
+			return err
+		}
+		for i, s := range DefaultSubjects {
+			db.Exec("INSERT OR IGNORE INTO subjects(school_id,name,sort) VALUES(1,?,?)", s, i+1)
+		}
+	} else if schoolName != "" {
+		db.Exec("UPDATE schools SET name=? WHERE id=1", schoolName)
+	}
+	return nil
 }
 
 // Migrate 把数据库升级到最新版本。
