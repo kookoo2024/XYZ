@@ -30,8 +30,19 @@ type Config struct {
 	Backup Backup `json:"backup"`
 	// Auth 登录设置。
 	Auth Auth `json:"auth"`
+	// Update 在线更新设置。
+	Update Update `json:"update"`
 
 	path string // 配置文件实际路径
+}
+
+type Update struct {
+	// Repo 发布版本的 GitHub 仓库（需公开）。
+	Repo string `json:"repo"`
+	// Mirrors 下载地址前缀，按顺序尝试；"" 表示直连 GitHub。
+	Mirrors []string `json:"mirrors"`
+	// AutoCheck 每 12 小时检查一次新版本（只提示，不自动安装）。
+	AutoCheck bool `json:"auto_check"`
 }
 
 type Auth struct {
@@ -63,6 +74,8 @@ func Default() *Config {
 		OpenBrowser: true,
 		Backup:      Backup{Enabled: true, Hour: 2, KeepDays: 30},
 		Auth:        Auth{TrustLocalhost: true, SessionDays: 30},
+		Update: Update{Repo: "kookoo2024/XYZ", AutoCheck: true,
+			Mirrors: []string{"https://ghfast.top/", "https://gh-proxy.com/", ""}},
 	}
 }
 
@@ -154,6 +167,12 @@ func (c *Config) normalize() {
 	c.PublicURL = strings.TrimRight(strings.TrimSpace(c.PublicURL), "/")
 	if c.Backup.Hour < 0 || c.Backup.Hour > 23 {
 		c.Backup.Hour = d.Backup.Hour
+	}
+	if c.Update.Repo == "" {
+		c.Update.Repo = d.Update.Repo
+	}
+	if c.Update.Mirrors == nil {
+		c.Update.Mirrors = d.Update.Mirrors
 	}
 	if c.SlidesDir == "" {
 		c.SlidesDir = d.SlidesDir
