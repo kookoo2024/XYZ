@@ -1,0 +1,13 @@
+{
+  "listen": ":80",
+  "data_dir": "D:\\Fire",
+  "public_url": "",
+  "school_name": "黄石三中",
+  "open_browser": true,
+  "backup": {
+    "enabled": true,
+    "hour": 2,
+    "keep_days": 30,
+    "dir": ""
+  }
+}
