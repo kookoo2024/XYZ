@@ -14,6 +14,7 @@ import (
 	"xyz/internal/httpx"
 	"xyz/internal/lesson"
 	"xyz/internal/org"
+	"xyz/internal/screen"
 	"xyz/internal/tiku"
 	"xyz/internal/web"
 )
@@ -27,6 +28,7 @@ func New(cfg *config.Config, db *sql.DB) *http.Server {
 	au := auth.New(db, cfg)
 	au.Register(mux)
 	org.New(db).Register(mux)
+	screen.New(db, cfg).Register(mux)
 	web.Register(mux)
 	tiku.New(db, cfg.DataDir).Register(mux)
 	lesson.New(db).Register(mux)
