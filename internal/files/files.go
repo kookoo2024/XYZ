@@ -29,10 +29,11 @@ type Service struct {
 	publicURL string           // 配置的对外地址，留空则用请求 Host
 	index     http.HandlerFunc // 文件管理界面（内嵌 index.html）
 	status    func() map[string]string
+	sign      func(rel string) string // 分享链接签名，扫码者免登录只能看这一个文件
 }
 
-func New(db *sql.DB, root, publicURL string, index http.HandlerFunc, status func() map[string]string) *Service {
-	return &Service{db: db, root: root, publicURL: publicURL, index: index, status: status}
+func New(db *sql.DB, root, publicURL string, index http.HandlerFunc, status func() map[string]string, sign func(string) string) *Service {
+	return &Service{db: db, root: root, publicURL: publicURL, index: index, status: status, sign: sign}
 }
 
 // Register 注册路由；"/" 兜底交给 HandleRoot。
@@ -289,7 +290,8 @@ func (s *Service) handleShare(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Path required", 400)
 		return
 	}
-	parts := strings.Split(safepath.CleanRel(path), "/")
+	rel := safepath.CleanRel(path)
+	parts := strings.Split(rel, "/")
 	for i, p := range parts {
 		parts[i] = url.PathEscape(p)
 	}
@@ -302,6 +304,9 @@ func (s *Service) handleShare(w http.ResponseWriter, r *http.Request) {
 		base = scheme + "://" + r.Host
 	}
 	fullURL := fmt.Sprintf("%s/files/%s", base, strings.Join(parts, "/"))
+	if s.sign != nil {
+		fullURL += "?s=" + s.sign(rel)
+	}
 	png, err := qrcode.Encode(fullURL, qrcode.Medium, 256)
 	if err != nil {
 		http.Error(w, "QR Generation failed", 500)
