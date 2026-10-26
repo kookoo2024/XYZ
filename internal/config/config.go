@@ -26,8 +26,18 @@ type Config struct {
 	OpenBrowser bool `json:"open_browser"`
 	// Backup 自动备份设置。
 	Backup Backup `json:"backup"`
+	// Auth 登录设置。
+	Auth Auth `json:"auth"`
 
 	path string // 配置文件实际路径
+}
+
+type Auth struct {
+	// TrustLocalhost 在服务器本机（localhost）直接访问时免登录，视为管理员。
+	// 经 Cloudflare 隧道进来的请求带 Cf-Connecting-Ip 头，不会被当成本机。
+	TrustLocalhost bool `json:"trust_localhost"`
+	// SessionDays 登录保持天数。
+	SessionDays int `json:"session_days"`
 }
 
 type Backup struct {
@@ -49,6 +59,7 @@ func Default() *Config {
 		SchoolName:  "",
 		OpenBrowser: true,
 		Backup:      Backup{Enabled: true, Hour: 2, KeepDays: 30},
+		Auth:        Auth{TrustLocalhost: true, SessionDays: 30},
 	}
 }
 
@@ -121,6 +132,8 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 	c.normalize()
+	// 写回一次，让老版本配置文件自动补齐新增的选项（读失败不影响启动）
+	c.Save()
 	return c, nil
 }
 
@@ -138,6 +151,9 @@ func (c *Config) normalize() {
 	c.PublicURL = strings.TrimRight(strings.TrimSpace(c.PublicURL), "/")
 	if c.Backup.Hour < 0 || c.Backup.Hour > 23 {
 		c.Backup.Hour = d.Backup.Hour
+	}
+	if c.Auth.SessionDays <= 0 {
+		c.Auth.SessionDays = d.Auth.SessionDays
 	}
 	if c.Backup.KeepDays <= 0 {
 		c.Backup.KeepDays = d.Backup.KeepDays
