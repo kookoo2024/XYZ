@@ -30,7 +30,7 @@
 <body>
 <div class="top">
   <a class="logo" href="/">🔥 XYZ</a><span class="muted" id="schoolName"></span>
-  <div class="who"><span id="me"></span><a class="btn sm" href="/">返回首页</a><button class="btn sm" id="logout">退出</button></div>
+  <div class="who"><span id="me"></span><a class="btn sm" href="/screen">🖥️ 大屏模式</a><a class="btn sm" href="/">返回首页</a><button class="btn sm" id="logout">退出</button></div>
 </div>
 <div class="wrap">
   <nav class="side" id="side"></nav>
@@ -195,7 +195,7 @@ const VIEWS = {
         <td style="text-align:right"><button class="btn sm" data-edit="${u.id}">编辑</button><button class="btn sm" data-pw="${u.id}">重置密码</button>
         ${u.id !== ME.id ? `<button class="btn sm danger" data-del="${u.id}">删除</button>` : ''}</td></tr>`).join('')}</table></div>
       <p class="muted" style="margin-top:12px;line-height:1.8">新建账号后把用户名和初始密码告诉同事，登录后可在「我的账号」里自己改密码。</p>`;
-    const roleOpts = [['teacher', '教师'], ['admin', '管理员'], ['student', '学生']];
+    const roleOpts = [['teacher', '教师'], ['admin', '管理员']];
     $('#add').onclick = async () => {
       const v = await formModal('新建账号', [
         { name: 'name', label: '姓名', placeholder: '如：王老师' },
