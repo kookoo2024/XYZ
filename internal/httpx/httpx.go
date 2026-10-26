@@ -55,3 +55,22 @@ func (s *statusRecorder) Flush() {
 		f.Flush()
 	}
 }
+
+// Error 输出 {"error": msg}，并设置状态码。
+func Error(w http.ResponseWriter, code int, msg string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+// Decode 解析 JSON 请求体（限制 1MB）；失败时已写好 400 响应，返回 false。
+func Decode(w http.ResponseWriter, r *http.Request, v interface{}) bool {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(v); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return false
+	}
+	return true
+}
+
+// OK 输出 {"ok": true}。
+func OK(w http.ResponseWriter) { JSON(w, map[string]bool{"ok": true}) }
