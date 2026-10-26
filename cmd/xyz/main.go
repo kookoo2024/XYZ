@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -17,11 +18,13 @@ import (
 	"xyz/internal/server"
 	"xyz/internal/store"
 	"xyz/internal/tray"
+	"xyz/internal/update"
 )
 
 func main() {
 	cfgPath := flag.String("config", config.DefaultPath(), "配置文件路径")
 	doBackup := flag.Bool("backup", false, "立即备份一次数据库后退出")
+	noBrowser := flag.Bool("no-browser", false, "启动时不打开浏览器（在线更新重启时使用）")
 	flag.Parse()
 
 	cfg, err := config.Load(*cfgPath)
@@ -55,21 +58,49 @@ func main() {
 		backup.Schedule(db, cfg.BackupDir(), cfg.Backup.Hour, cfg.Backup.KeepDays)
 	}
 
-	srv := server.New(cfg, db)
+	update.Cleanup()
+	var srv *http.Server
+	up := update.New(update.Options{Repo: cfg.Update.Repo, Mirrors: cfg.Update.Mirrors, Current: server.Version},
+		func(exe string) {
+			// 在线更新/回退后重启：先关服务释放端口和数据库，再启动新程序
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			srv.Shutdown(ctx)
+			cancel()
+			db.Close()
+			cmd := exec.Command(exe, "-config", cfg.Path(), "-no-browser")
+			cmd.Dir = filepath.Dir(exe)
+			if err := cmd.Start(); err != nil {
+				log.Println("重启失败，请手动打开程序:", err)
+			}
+			os.Exit(0)
+		})
+	if cfg.Update.AutoCheck && server.Version != "dev" {
+		up.StartAutoCheck()
+	}
+	srv = server.New(cfg, db, up)
 	tray.Run(tray.Options{
 		LocalURL: cfg.LocalURL(),
 		LANAddr:  server.LocalIP() + ":" + cfg.Port(),
 		DataDir:  cfg.DataDir,
 		OnReady: func() {
-			if cfg.OpenBrowser {
+			if cfg.OpenBrowser && !*noBrowser {
 				go func() {
 					time.Sleep(500 * time.Millisecond)
 					tray.OpenBrowser(cfg.LocalURL())
 				}()
 			}
 			log.Printf("服务地址 %s（局域网 %s:%s）", cfg.LocalURL(), server.LocalIP(), cfg.Port())
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Println("服务启动失败（端口被占用？可在 xyz.json 改 listen）:", err)
+			// 端口可能还被刚退出的旧进程占着（在线更新重启时），重试 15 秒
+			for i := 0; ; i++ {
+				err := srv.ListenAndServe()
+				if err == nil || err == http.ErrServerClosed {
+					break
+				}
+				if i >= 15 {
+					log.Println("服务启动失败（端口被占用？可在 xyz.json 改 listen）:", err)
+					break
+				}
+				time.Sleep(time.Second)
 			}
 		},
 		OnExit: func() {
