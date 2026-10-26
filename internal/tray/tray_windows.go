@@ -36,6 +36,7 @@ func onReady(o Options) {
 
 	mOpen := systray.AddMenuItem("🌐 打开浏览器", "打开管理页面")
 	mTiku := systray.AddMenuItem("📖 题库", "打开题库系统")
+	mScreen := systray.AddMenuItem("🖥️ 大屏模式", "课前轮播、随机点名")
 	mAdmin := systray.AddMenuItem("⚙️ 管理后台", "账号、班级、学生、任课")
 	mDir := systray.AddMenuItem("📁 打开 "+o.DataDir, "打开文件目录")
 	systray.AddSeparator()
@@ -56,6 +57,8 @@ func onReady(o Options) {
 				OpenBrowser(o.LocalURL)
 			case <-mTiku.ClickedCh:
 				OpenBrowser(o.LocalURL + "/tiku")
+			case <-mScreen.ClickedCh:
+				OpenBrowser(o.LocalURL + "/screen")
 			case <-mAdmin.ClickedCh:
 				OpenBrowser(o.LocalURL + "/admin")
 			case <-mDir.ClickedCh:
