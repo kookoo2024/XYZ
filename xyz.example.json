@@ -9,5 +9,9 @@
     "hour": 2,
     "keep_days": 30,
     "dir": ""
+  },
+  "auth": {
+    "trust_localhost": true,
+    "session_days": 30
   }
 }
