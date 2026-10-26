@@ -24,7 +24,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .clock{margin-top:5vh;text-align:center}
 .clock .t{font-size:16vh;font-weight:200;letter-spacing:.02em;line-height:1;font-variant-numeric:tabular-nums}
 .clock .d{font-size:3vh;color:var(--t2);margin-top:1.5vh}
-.tiles{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:2.5vw;align-content:center;margin-top:4vh}
+.tiles{flex:1;display:grid;grid-template-columns:repeat(5,1fr);gap:2.5vw;align-content:center;margin-top:4vh}
 .tile{background:var(--card);border:2px solid var(--card2);border-radius:28px;padding:4vh 2vw;display:flex;flex-direction:column;align-items:center;gap:2vh;transition:.15s}
 .tile:active{transform:scale(.96);border-color:var(--accent)}
 .tile .ic{font-size:9vh;line-height:1}
@@ -106,6 +106,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
   <div class="tiles">
     <button class="tile main" onclick="openSlides()"><span class="ic">🖼️</span><span class="n">课前轮播</span><span class="s" id="slideCount">&nbsp;</span></button>
     <button class="tile main" onclick="openCall()"><span class="ic">🎯</span><span class="n">随机点名</span><span class="s" id="stuCount">&nbsp;</span></button>
+    <button class="tile main" onclick="location.href='/pk' + (CLS ? '?class_id=' + CLS.id : '')"><span class="ic">⚔️</span><span class="n">课堂PK</span><span class="s">双人对战 · 单人挑战</span></button>
     <button class="tile" onclick="location.href='/tiku'"><span class="ic">📚</span><span class="n">题库</span><span class="s">查题 · 组卷</span></button>
     <button class="tile" onclick="location.href='/'"><span class="ic">📁</span><span class="n">课件文件</span><span class="s">云盘 · H5 课件</span></button>
   </div>
