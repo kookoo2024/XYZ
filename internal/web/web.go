@@ -44,6 +44,7 @@ func Register(mux *http.ServeMux) {
 	mux.HandleFunc("/setup", page("login.html", false))
 	mux.HandleFunc("/admin", page("admin.html", false))
 	mux.HandleFunc("/screen", page("screen.html", false))
+	mux.HandleFunc("/pk", page("pk.html", false))
 	assets, _ := fs.Sub(staticFS, "static/assets")
 	fsrv := http.StripPrefix("/assets/", http.FileServer(http.FS(assets)))
 	mux.HandleFunc("/assets/", func(w http.ResponseWriter, r *http.Request) {
