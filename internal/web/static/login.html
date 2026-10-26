@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 - XYZ</title>
+<link rel="stylesheet" href="/assets/xyz.css">
+<style>
+body{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f5f3ff,#eef2ff 50%,#f3f4f6)}
+.box{width:min(380px,92vw)}
+.logo{font-size:30px;font-weight:700;text-align:center;margin-bottom:4px}
+.school{text-align:center;color:var(--t3);margin-bottom:22px}
+.card{padding:28px;box-shadow:0 20px 60px rgba(124,106,255,.12)}
+.card h2{font-size:18px;margin-bottom:16px}
+.btn.primary{width:100%;padding:10px;margin-top:6px}
+.err{color:var(--danger);font-size:13px;min-height:18px;margin-top:8px}
+.tip{font-size:12px;color:var(--t3);margin-top:14px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">🔥 XYZ</div>
+  <div class="school" id="school">教学服务平台</div>
+  <div class="card" id="loginCard" style="display:none">
+    <h2>登录</h2>
+    <div class="field"><label>用户名</label><input id="u" autocomplete="username" autofocus></div>
+    <div class="field"><label>密码</label><input id="p" type="password" autocomplete="current-password"></div>
+    <button class="btn primary" id="go">登录</button>
+    <div class="err" id="err"></div>
+    <div class="tip" id="tip">忘记密码请联系管理员重置。</div>
+  </div>
+  <div class="card" id="setupCard" style="display:none">
+    <h2>首次使用：创建管理员</h2>
+    <div class="field"><label>学校名称</label><input id="s_school" placeholder="如：黄石三中"></div>
+    <div class="field"><label>管理员用户名</label><input id="s_u" placeholder="如：chen"></div>
+    <div class="field"><label>姓名</label><input id="s_n" placeholder="如：陈迪柱"></div>
+    <div class="field"><label>密码（至少 6 位）</label><input id="s_p" type="password"></div>
+    <div class="field"><label>再输一次</label><input id="s_p2" type="password"></div>
+    <button class="btn primary" id="s_go">创建并进入</button>
+    <div class="err" id="s_err"></div>
+  </div>
+  <div class="card" id="remoteSetup" style="display:none">
+    <h2>系统还没有初始化</h2>
+    <p class="muted" style="line-height:1.8">请在<b>服务器那台电脑</b>上打开<br><code>http://localhost/setup</code><br>创建第一个管理员账号。</p>
+  </div>
+</div>
+<script src="/assets/xyz.js"></script>
+<script>
+const next = new URLSearchParams(location.search).get('next');
+const goNext = () => location.href = (next && next.startsWith('/') && !next.startsWith('//')) ? next : '/';
+(async () => {
+  const st = await api('GET', '/api/v1/auth/status');
+  if (st.school) { $('#school').textContent = st.school; $('#s_school').value = st.school; }
+  if (st.setup_needed) {
+    (st.local ? $('#setupCard') : $('#remoteSetup')).style.display = 'block';
+    return;
+  }
+  $('#loginCard').style.display = 'block';
+  if (st.local) $('#tip').innerHTML = '你正在服务器本机，不登录也能直接<a href="/">使用全部功能</a>。<br>忘记密码请联系管理员重置。';
+  if (st.user && !st.user.local && !location.pathname.startsWith('/setup')) $('#tip').innerHTML = `已登录为 ${esc(st.user.name)}，<a href="/">进入首页</a>。`;
+})();
+async function login() {
+  $('#err').textContent = '';
+  try { await api('POST', '/api/v1/auth/login', { username: $('#u').value, password: $('#p').value }); goNext(); }
+  catch (e) { $('#err').textContent = e.message; }
+}
+$('#go').onclick = login;
+$('#p').onkeydown = e => { if (e.key === 'Enter') login(); };
+$('#u').onkeydown = e => { if (e.key === 'Enter') $('#p').focus(); };
+$('#s_go').onclick = async () => {
+  $('#s_err').textContent = '';
+  if ($('#s_p').value !== $('#s_p2').value) { $('#s_err').textContent = '两次密码不一致'; return; }
+  try {
+    await api('POST', '/api/v1/auth/setup', { school: $('#s_school').value, username: $('#s_u').value, name: $('#s_n').value, password: $('#s_p').value });
+    location.href = '/admin';
+  } catch (e) { $('#s_err').textContent = e.message; }
+};
+</script>
+</body>
+</html>
