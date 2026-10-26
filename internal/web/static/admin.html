@@ -50,6 +50,7 @@ const TABS = [
   ['-'],
   ['users', '教师账号', isAdmin],
   ['subjects', '学科', isAdmin],
+  ['system', '系统更新', isAdmin],
   ['-'],
   ['account', '我的账号', () => true],
 ];
@@ -245,6 +246,60 @@ const VIEWS = {
     document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
       const s = SUBJECTS.find(x => x.id == b.dataset.del); if (!confirm(`删除学科「${s.name}」？相关任课安排会一并删除。`)) return;
       try { await api('DELETE', '/api/v1/subjects/' + s.id); show('subjects'); } catch (e) { toast(e.message, 1); } });
+  },
+
+  // ===== 系统更新 =====
+  async system() {
+    let st = await api('GET', '/api/v1/update/status');
+    const render = () => {
+      const L = st.latest;
+      const busy = st.state === 'downloading' || st.state === 'restarting';
+      $('#main').innerHTML = `<div class="head"><h2>系统更新</h2></div>
+        <div class="card" style="max-width:640px;line-height:2">
+          <div>当前版本：<b>${esc(st.current)}</b> <span class="muted">（${esc(st.platform)}）</span></div>
+          <div>最新版本：${L ? `<b>${esc(L.version)}</b> <span class="muted">${esc((L.date || '').slice(0, 10))}</span>` : '<span class="muted">未检查</span>'}
+            ${st.has_update ? ' <span class="tag admin">有新版本</span>' : L ? ' <span class="tag">已是最新</span>' : ''}</div>
+          ${st.checked_at ? `<div class="muted" style="font-size:13px">上次检查：${esc(st.checked_at)}</div>` : ''}
+          ${L && L.notes && st.has_update ? `<pre style="white-space:pre-wrap;background:var(--bg0);border-radius:8px;padding:10px;margin:8px 0;font:13px/1.7 inherit">${esc(L.notes.replace(/SHA256:.*$/m, '').trim()) || '（无更新说明）'}</pre>` : ''}
+          ${busy || st.state === 'error' ? `<div style="margin:10px 0">
+            <div style="height:8px;background:var(--bg2);border-radius:99px;overflow:hidden"><div style="height:100%;width:${st.progress}%;background:var(--accent);transition:.3s"></div></div>
+            <div class="${st.state === 'error' ? '' : 'muted'}" style="font-size:13px;${st.state === 'error' ? 'color:var(--danger)' : ''}">${esc(st.message)}</div></div>` : ''}
+          <div class="row" style="margin-top:12px">
+            <button class="btn" id="chk" ${busy ? 'disabled' : ''}>检查更新</button>
+            ${st.has_update && st.can_apply ? `<button class="btn primary" id="go" ${busy ? 'disabled' : ''}>立即更新到 ${esc(L.version)}</button>` : ''}
+            ${st.can_rollback ? `<button class="btn right" id="back" ${busy ? 'disabled' : ''}>回退到上一版</button>` : ''}
+          </div>
+          ${!st.can_apply ? '<p class="muted" style="font-size:13px;margin-top:8px">当前系统不支持在线安装，请手动替换程序。</p>' : ''}
+          <p class="muted" style="font-size:13px;margin-top:10px">更新会重启服务约 5 秒，正在上课的大屏会自动重连。数据不受影响，旧版保留可一键回退。</p>
+        </div>`;
+      $('#chk').onclick = async () => { $('#chk').disabled = true; $('#chk').textContent = '检查中…';
+        try { st = await api('POST', '/api/v1/update/check'); toast(st.has_update ? '发现新版本 ' + st.latest.version : '已是最新版本'); } catch (e) { toast(e.message, 1); st = await api('GET', '/api/v1/update/status'); }
+        render(); };
+      if ($('#go')) $('#go').onclick = async () => {
+        if (!confirm(`更新到 ${L.version}？服务会重启几秒钟。`)) return;
+        try { st = await api('POST', '/api/v1/update/apply'); render(); poll(); } catch (e) { toast(e.message, 1); } };
+      if ($('#back')) $('#back').onclick = async () => {
+        if (!confirm('回退到上一个版本？服务会重启几秒钟。')) return;
+        try { st = await api('POST', '/api/v1/update/rollback'); render(); waitRestart(st.current); } catch (e) { toast(e.message, 1); } };
+    };
+    const poll = async () => {
+      while (cur === 'system') {
+        await new Promise(r => setTimeout(r, 700));
+        try { st = await api('GET', '/api/v1/update/status'); } catch (e) { break; }
+        render();
+        if (st.state === 'restarting') return waitRestart(st.current);
+        if (st.state !== 'downloading') return;
+      }
+    };
+    const waitRestart = async (oldVer) => {
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 1500));
+        try { const r = await fetch('/api/status'); if (r.ok) { const d = await r.json(); if (d.version && d.version !== oldVer) { toast('已更新到 ' + d.version); setTimeout(() => location.reload(), 800); return; } } } catch (e) {}
+      }
+      toast('重启时间较长，请稍后刷新页面', 1);
+    };
+    render();
+    if (st.state === 'downloading') poll();
   },
 
   // ===== 我的账号 =====
