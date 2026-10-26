@@ -4,6 +4,7 @@
   "public_url": "",
   "school_name": "黄石三中",
   "open_browser": true,
+  "slides_dir": "轮播",
   "backup": {
     "enabled": true,
     "hour": 2,
