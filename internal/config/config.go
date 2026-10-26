@@ -24,6 +24,8 @@ type Config struct {
 	SchoolName string `json:"school_name"`
 	// OpenBrowser 启动后是否自动打开浏览器。
 	OpenBrowser bool `json:"open_browser"`
+	// SlidesDir 课前轮播图片所在文件夹（相对数据目录），可在里面按班级名建子文件夹。
+	SlidesDir string `json:"slides_dir"`
 	// Backup 自动备份设置。
 	Backup Backup `json:"backup"`
 	// Auth 登录设置。
@@ -57,6 +59,7 @@ func Default() *Config {
 		Listen:      ":80",
 		DataDir:     dataDir,
 		SchoolName:  "",
+		SlidesDir:   "轮播",
 		OpenBrowser: true,
 		Backup:      Backup{Enabled: true, Hour: 2, KeepDays: 30},
 		Auth:        Auth{TrustLocalhost: true, SessionDays: 30},
@@ -151,6 +154,9 @@ func (c *Config) normalize() {
 	c.PublicURL = strings.TrimRight(strings.TrimSpace(c.PublicURL), "/")
 	if c.Backup.Hour < 0 || c.Backup.Hour > 23 {
 		c.Backup.Hour = d.Backup.Hour
+	}
+	if c.SlidesDir == "" {
+		c.SlidesDir = d.SlidesDir
 	}
 	if c.Auth.SessionDays <= 0 {
 		c.Auth.SessionDays = d.Auth.SessionDays
