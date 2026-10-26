@@ -11,6 +11,11 @@
     "keep_days": 30,
     "dir": ""
   },
+  "update": {
+    "repo": "kookoo2024/XYZ",
+    "mirrors": ["https://ghfast.top/", "https://gh-proxy.com/", ""],
+    "auto_check": true
+  },
   "auth": {
     "trust_localhost": true,
     "session_days": 30
