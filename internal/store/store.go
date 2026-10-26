@@ -184,6 +184,43 @@ var migrations = []string{
 	);
 	CREATE INDEX IF NOT EXISTS idx_call_log_class ON call_log(class_id, round);
 	`,
+	// v4：题目加学科（旧题为空，视为数学）；大屏 PK 对战记录与每题作答（用于成绩和错题）
+	`
+	ALTER TABLE questions ADD COLUMN subject TEXT NOT NULL DEFAULT '';
+	CREATE INDEX IF NOT EXISTS idx_q_subject ON questions(subject);
+
+	CREATE TABLE IF NOT EXISTS pk_matches (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		school_id INTEGER NOT NULL DEFAULT 1,
+		class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+		subject TEXT NOT NULL DEFAULT '',
+		mode TEXT NOT NULL DEFAULT '',
+		total INTEGER NOT NULL DEFAULT 0,
+		a_id INTEGER NOT NULL DEFAULT 0,
+		a_name TEXT NOT NULL DEFAULT '',
+		a_score INTEGER NOT NULL DEFAULT 0,
+		b_id INTEGER NOT NULL DEFAULT 0,
+		b_name TEXT NOT NULL DEFAULT '',
+		b_score INTEGER NOT NULL DEFAULT 0,
+		winner INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL DEFAULT ''
+	);
+	CREATE INDEX IF NOT EXISTS idx_pk_class ON pk_matches(class_id, created_at);
+
+	CREATE TABLE IF NOT EXISTS pk_answers (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		match_id INTEGER NOT NULL REFERENCES pk_matches(id) ON DELETE CASCADE,
+		class_id INTEGER NOT NULL DEFAULT 0,
+		student_id INTEGER NOT NULL DEFAULT 0,
+		question_id INTEGER NOT NULL DEFAULT 0,
+		choice TEXT NOT NULL DEFAULT '',
+		correct INTEGER NOT NULL DEFAULT 0,
+		ms INTEGER NOT NULL DEFAULT 0,
+		at TEXT NOT NULL DEFAULT ''
+	);
+	CREATE INDEX IF NOT EXISTS idx_pka_student ON pk_answers(student_id);
+	CREATE INDEX IF NOT EXISTS idx_pka_class ON pk_answers(class_id, question_id);
+	`,
 }
 
 // DefaultSubjects 新学校默认学科（可在管理后台增删）。
