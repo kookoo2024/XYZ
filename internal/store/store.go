@@ -173,6 +173,17 @@ var migrations = []string{
 	);
 	CREATE INDEX IF NOT EXISTS idx_teaching_teacher ON teaching(teacher_id);
 	`,
+	// v3：大屏随机点名记录（round 为第几轮，一轮内不重复）
+	`
+	CREATE TABLE IF NOT EXISTS call_log (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+		student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+		round INTEGER NOT NULL DEFAULT 1,
+		at TEXT NOT NULL DEFAULT ''
+	);
+	CREATE INDEX IF NOT EXISTS idx_call_log_class ON call_log(class_id, round);
+	`,
 }
 
 // DefaultSubjects 新学校默认学科（可在管理后台增删）。
