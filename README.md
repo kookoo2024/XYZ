@@ -16,6 +16,16 @@ FireCloud 2.0。专为学校教室设计的单文件教学平台：一个 exe、
 | 备课系统：素材树、模板画布、涂鸦、演示 | `/lesson` |
 | Markdown 杂志式阅读器 | `/reader` |
 
+## 在线更新
+
+管理后台「系统更新」（或托盘「检查更新」）：检查 → 立即更新 → 自动下载、SHA256 校验、替换、重启（约 5 秒），旧版保存为 `XYZ.exe.old`，可一键回退。程序每 12 小时自动检查一次，只提示不自动安装（避免上课时重启）。
+
+- 版本来源：本仓库 GitHub Releases（仓库需公开）
+- 国内下载：依次尝试 `ghfast.top`、`gh-proxy.com` 镜像，最后直连 GitHub；校验值从 GitHub API 取，镜像改不了文件
+- 配置：`xyz.json` 的 `update.repo`、`update.mirrors`、`update.auto_check`
+
+**发布新版本**（开发者）：GitHub → Actions → release → Run workflow，填版本号（如 2.3.1）和更新说明。自动测试、编译、发布，所有学校的 XYZ 都能检查到。
+
 ## 第2步（进行中）：教室大屏 `/screen`
 
 学生没有手机平板，所有互动都在教室触摸大屏上完成。托盘菜单、各页面右下角头像、管理后台顶部都能进「大屏模式」。
