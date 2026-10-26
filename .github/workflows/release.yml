@@ -1,0 +1,59 @@
+# 发布新版本：在 Actions 页面手动运行（填版本号），或推送 v* 标签。
+# 自动跑测试、编译 Windows 版 XYZ.exe，并发布到 Releases，程序里的「检查更新」就能看到。
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号，如 2.3.0"
+        required: true
+      notes:
+        description: "更新说明（可选）"
+        required: false
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: 版本号
+        id: v
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then V="${{ github.event.inputs.version }}"; else V="${GITHUB_REF_NAME#v}"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: 测试
+        run: go vet ./... && go test ./...
+
+      - name: 编译
+        run: |
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath \
+            -ldflags "-s -w -H=windowsgui -X xyz/internal/server.Version=${{ steps.v.outputs.version }}" \
+            -o XYZ.exe ./cmd/xyz
+          sha256sum XYZ.exe | cut -d' ' -f1 > XYZ.exe.sha256
+          {
+            echo "${{ github.event.inputs.notes }}"
+            echo
+            echo "SHA256: $(cat XYZ.exe.sha256)"
+          } > notes.md
+
+      - name: 发布
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.v.outputs.version }}
+          name: XYZ ${{ steps.v.outputs.version }}
+          body_path: notes.md
+          files: |
+            XYZ.exe
+            XYZ.exe.sha256
