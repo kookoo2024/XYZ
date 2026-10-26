@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>大屏 - XYZ</title>
+<style>
+:root{--bg:#0d0f1a;--card:#171a2b;--card2:#20243a;--t1:#f3f4f8;--t2:#a3a8c3;--t3:#6b7090;--accent:#7c6aff;--accent2:#a78bfa;--gold:#fbbf24;--ok:#34d399;--bad:#f87171}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden}
+body{background:radial-gradient(ellipse at 20% 0%,#1d1b3a 0%,var(--bg) 60%);color:var(--t1);font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.view{position:absolute;inset:0;display:none}
+.view.on{display:flex}
+
+/* 首页 */
+#home{flex-direction:column;padding:4vh 5vw}
+.bar{display:flex;align-items:center;gap:2vw}
+.cls-btn{background:var(--card);border:2px solid var(--card2);border-radius:999px;padding:1.2vh 2.2vw;font-size:2.6vh;font-weight:600;display:flex;align-items:center;gap:.8vw}
+.cls-btn:active{transform:scale(.97)}
+.school{color:var(--t2);font-size:2.2vh}
+.icon-btn{margin-left:auto;background:var(--card);border-radius:14px;padding:1.2vh 1.6vw;font-size:2.2vh;color:var(--t2)}
+.icon-btn+.icon-btn{margin-left:1vw}
+.clock{margin-top:5vh;text-align:center}
+.clock .t{font-size:16vh;font-weight:200;letter-spacing:.02em;line-height:1;font-variant-numeric:tabular-nums}
+.clock .d{font-size:3vh;color:var(--t2);margin-top:1.5vh}
+.tiles{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:2.5vw;align-content:center;margin-top:4vh}
+.tile{background:var(--card);border:2px solid var(--card2);border-radius:28px;padding:4vh 2vw;display:flex;flex-direction:column;align-items:center;gap:2vh;transition:.15s}
+.tile:active{transform:scale(.96);border-color:var(--accent)}
+.tile .ic{font-size:9vh;line-height:1}
+.tile .n{font-size:3.4vh;font-weight:600}
+.tile .s{font-size:2vh;color:var(--t3)}
+.tile.main{background:linear-gradient(145deg,#2b2360,#1b1d36);border-color:#3b3380}
+
+/* 选班弹层 */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+.sheet.on{display:flex}
+.sheet .box{background:var(--card);border-radius:28px;padding:4vh 3vw;width:min(900px,90vw)}
+.sheet h3{font-size:3vh;margin-bottom:3vh;font-weight:500;color:var(--t2)}
+.sheet .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1.5vw}
+.sheet .grid button{background:var(--card2);border-radius:18px;padding:3vh 1vw;font-size:3vh;font-weight:600}
+.sheet .grid button.cur{background:var(--accent)}
+
+/* 轮播 */
+#slides{background:#000;align-items:center;justify-content:center}
+#slides .stage{position:absolute;inset:0}
+#slides .stage img,#slides .stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .8s}
+#slides .stage .show{opacity:1}
+#slides .corner{position:absolute;right:2vw;top:2vh;background:rgba(0,0,0,.45);padding:.8vh 1.4vw;border-radius:999px;font-size:2.4vh;color:#ddd;font-variant-numeric:tabular-nums;pointer-events:none}
+#slides .tools{position:absolute;left:50%;bottom:4vh;transform:translateX(-50%);display:flex;gap:1vw;background:rgba(20,22,36,.85);backdrop-filter:blur(10px);padding:1.2vh 1.4vw;border-radius:999px;transition:opacity .3s}
+#slides .tools.hide{opacity:0;pointer-events:none}
+#slides .tools button{padding:1.2vh 1.8vw;border-radius:999px;font-size:2.4vh;background:rgba(255,255,255,.08)}
+#slides .tools button.on{background:var(--accent)}
+#slides .empty{color:var(--t2);font-size:3vh;text-align:center;line-height:2;padding:0 10vw}
+#slides .empty code{background:var(--card2);padding:.3vh 1vw;border-radius:8px;color:var(--gold)}
+.paused-badge{position:absolute;left:2vw;top:2vh;background:rgba(0,0,0,.5);padding:.8vh 1.4vw;border-radius:999px;font-size:2.4vh;display:none}
+
+/* 点名 */
+#call{padding:3vh 3vw;gap:2.5vw}
+#call .left{flex:1;display:flex;flex-direction:column}
+#call .right{width:34vw;background:var(--card);border-radius:24px;padding:2.5vh 1.5vw;display:flex;flex-direction:column;min-height:0}
+.topline{display:flex;align-items:center;gap:1.2vw}
+.back{background:var(--card);border-radius:14px;padding:1.2vh 1.6vw;font-size:2.4vh}
+.title{font-size:3vh;font-weight:600}
+.info{color:var(--t2);font-size:2.2vh;margin-left:auto}
+.stagebox{flex:1;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:3vw;align-content:center}
+.namecard{background:linear-gradient(160deg,#2a2462,#191b33);border:3px solid #3b3380;border-radius:36px;min-width:30vw;padding:6vh 3vw;text-align:center;transition:transform .2s}
+.namecard .nm{font-size:16vh;font-weight:700;letter-spacing:.06em;line-height:1.1}
+.namecard .no{font-size:2.6vh;color:var(--t2);margin-top:1.5vh;min-height:3vh}
+.namecard.small{min-width:22vw;padding:4vh 2vw}.namecard.small .nm{font-size:10vh}
+.namecard.tiny{min-width:16vw;padding:3vh 1.5vw;border-radius:24px}.namecard.tiny .nm{font-size:7vh}
+.namecard.rolling .nm{color:var(--t2)}
+.namecard.done{border-color:var(--gold);box-shadow:0 0 60px rgba(251,191,36,.25);animation:pop .4s}
+@keyframes pop{0%{transform:scale(.9)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+.hint{color:var(--t3);font-size:3vh}
+.actions{display:flex;gap:1.5vw;justify-content:center;padding-top:2vh}
+.big{background:var(--accent);border-radius:22px;padding:2.6vh 4vw;font-size:3.6vh;font-weight:700;box-shadow:0 10px 30px rgba(124,106,255,.35)}
+.big:active{transform:scale(.96)}
+.big.alt{background:var(--card2);box-shadow:none}
+.big:disabled{opacity:.5}
+.rhead{display:flex;align-items:center;margin-bottom:1.5vh}
+.rhead b{font-size:2.6vh}
+.rhead .sm{margin-left:auto;font-size:2vh;background:var(--card2);padding:.8vh 1.2vw;border-radius:12px;color:var(--t2)}
+.legend{font-size:1.8vh;color:var(--t3);margin-bottom:1.5vh;line-height:1.6}
+.roster{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:.8vw;align-content:start;padding-right:.3vw}
+.roster button{background:var(--card2);border-radius:12px;padding:1.4vh .3vw;font-size:2.2vh;position:relative}
+.roster button.called{opacity:.4}
+.roster button.absent{background:transparent;border:2px dashed var(--bad);color:var(--bad);opacity:1}
+.roster button.hit{background:var(--accent);opacity:1}
+.empty-roster{color:var(--t3);font-size:2.2vh;line-height:1.8;padding:2vh 0}
+.toast{position:fixed;left:50%;top:3vh;transform:translateX(-50%);background:#fff;color:#111;padding:1.2vh 2.4vw;border-radius:999px;font-size:2.4vh;z-index:99;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- 首页 -->
+<section class="view on" id="home">
+  <div class="bar">
+    <button class="cls-btn" id="clsBtn">🏫 <span id="clsName">选择班级</span> ▾</button>
+    <span class="school" id="school"></span>
+    <button class="icon-btn" id="fsBtn">⛶ 全屏</button>
+    <button class="icon-btn" onclick="location.href='/'">↩ 退出大屏</button>
+  </div>
+  <div class="clock"><div class="t" id="clock">--:--</div><div class="d" id="date"></div></div>
+  <div class="tiles">
+    <button class="tile main" onclick="openSlides()"><span class="ic">🖼️</span><span class="n">课前轮播</span><span class="s" id="slideCount">&nbsp;</span></button>
+    <button class="tile main" onclick="openCall()"><span class="ic">🎯</span><span class="n">随机点名</span><span class="s" id="stuCount">&nbsp;</span></button>
+    <button class="tile" onclick="location.href='/tiku'"><span class="ic">📚</span><span class="n">题库</span><span class="s">查题 · 组卷</span></button>
+    <button class="tile" onclick="location.href='/'"><span class="ic">📁</span><span class="n">课件文件</span><span class="s">云盘 · H5 课件</span></button>
+  </div>
+</section>
+
+<!-- 选班 -->
+<div class="sheet" id="sheet"><div class="box"><h3>选择班级</h3><div class="grid" id="clsGrid"></div></div></div>
+
+<!-- 轮播 -->
+<section class="view" id="slides">
+  <div class="stage" id="stage"></div>
+  <div class="paused-badge" id="pausedBadge">⏸ 已暂停</div>
+  <div class="corner" id="sCorner"></div>
+  <div class="tools hide" id="sTools">
+    <button onclick="slideGo(-1)">◀ 上一张</button>
+    <button id="playBtn" onclick="togglePause()">⏸ 暂停</button>
+    <button onclick="slideGo(1)">下一张 ▶</button>
+    <button id="ivBtn" onclick="cycleInterval()">⏱ 8 秒</button>
+    <button id="shufBtn" onclick="toggleShuffle()">🔀 随机</button>
+    <button onclick="closeSlides()">✕ 退出</button>
+  </div>
+</section>
+
+<!-- 点名 -->
+<section class="view" id="call">
+  <div class="left">
+    <div class="topline">
+      <button class="back" onclick="show('home')">← 返回</button>
+      <span class="title" id="callTitle">随机点名</span>
+      <span class="info" id="callInfo"></span>
+    </div>
+    <div class="stagebox" id="callStage"><div class="hint">点下面的按钮开始</div></div>
+    <div class="actions">
+      <button class="big" onclick="draw(1)" id="d1">🎯 抽 1 人</button>
+      <button class="big alt" onclick="draw(2)" id="d2">⚔️ 抽 2 人</button>
+      <button class="big alt" onclick="draw(4)" id="d4">👥 抽 4 人</button>
+    </div>
+  </div>
+  <div class="right">
+    <div class="rhead"><b>名单</b><button class="sm" onclick="newRound()">↻ 重新一轮</button></div>
+    <div class="legend">点名字标记<span style="color:var(--bad)">请假/缺席</span>（今天有效，不会被抽到）。变暗的是本轮已点过的。</div>
+    <div class="roster" id="roster"></div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const api = async (method, url, body) => {
+  const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401) { location.href = '/login?next=/screen'; throw new Error('请先登录'); }
+  const d = await r.json().catch(() => null);
+  if (!r.ok || (d && d.error)) throw new Error((d && d.error) || '请求失败');
+  return d;
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const today = () => new Date().toLocaleDateString('sv');
+function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
+function show(id) { document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === id)); }
+
+// ===== 时钟 =====
+const WEEK = '日一二三四五六';
+function tick() {
+  const d = new Date();
+  $('#clock').textContent = d.toTimeString().slice(0, 5);
+  $('#date').textContent = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日  星期${WEEK[d.getDay()]}`;
+  $('#sCorner').textContent = (slides.length ? `${idx + 1} / ${slides.length}   ` : '') + d.toTimeString().slice(0, 5);
+}
+setInterval(tick, 1000);
+
+// ===== 全屏 =====
+function toggleFS() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+$('#fsBtn').onclick = toggleFS;
+document.addEventListener('fullscreenchange', () => $('#fsBtn').textContent = document.fullscreenElement ? '⛶ 退出全屏' : '⛶ 全屏');
+
+// ===== 班级 =====
+let CLASSES = [], CLS = null;
+async function loadClasses() {
+  const [all, mine] = await Promise.all([api('GET', '/api/v1/classes'), api('GET', '/api/v1/me/classes').catch(() => [])]);
+  const mineIds = new Set(mine.map(c => c.id));
+  CLASSES = [...all.filter(c => mineIds.has(c.id)), ...all.filter(c => !mineIds.has(c.id))];
+  const saved = +localStorage.getItem('xyz.screen.class');
+  setClass(CLASSES.find(c => c.id === saved) || CLASSES[0] || null);
+}
+function setClass(c) {
+  CLS = c;
+  $('#clsName').textContent = c ? c.name : '还没有班级';
+  if (c) localStorage.setItem('xyz.screen.class', c.id);
+  $('#stuCount').textContent = c ? `${c.student_count} 人` : '请先在管理后台建班';
+  refreshSlideCount();
+}
+$('#clsBtn').onclick = () => {
+  if (!CLASSES.length) { toast('还没有班级，请先到管理后台建班'); return; }
+  $('#clsGrid').innerHTML = CLASSES.map(c => `<button class="${CLS && c.id === CLS.id ? 'cur' : ''}" data-id="${c.id}">${esc(c.name)}</button>`).join('');
+  $('#sheet').classList.add('on');
+};
+$('#sheet').onclick = e => {
+  const b = e.target.closest('button[data-id]');
+  if (b) setClass(CLASSES.find(c => c.id == b.dataset.id));
+  $('#sheet').classList.remove('on');
+};
+
+// ===== 轮播 =====
+let slides = [], idx = 0, timer = null, paused = false, folder = '';
+const IVS = [5, 8, 15, 30, 60];
+let iv = +localStorage.getItem('xyz.screen.iv') || 8;
+let shuffle = localStorage.getItem('xyz.screen.shuffle') === '1';
+async function fetchSlides() {
+  const d = await api('GET', '/api/v1/screen/slides' + (CLS ? '?class_id=' + CLS.id : ''));
+  folder = d.folder; return d.slides;
+}
+async function refreshSlideCount() {
+  try { const s = await fetchSlides(); $('#slideCount').textContent = s.length ? `${s.length} 张` : '还没放图片'; } catch (e) {}
+}
+async function openSlides() {
+  show('slides'); $('#stage').innerHTML = '';
+  slides = await fetchSlides().catch(() => []);
+  if (!slides.length) {
+    $('#stage').innerHTML = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div class="empty">还没有轮播图片。<br>把图片放进数据目录下的 <code>${esc(folder.replace(/\//g, '\\'))}</code> 文件夹即可。<br>
+      想每个班不一样，就在里面建以班级名命名的子文件夹，比如 <code>${esc(folder.replace(/\//g, '\\'))}\\${esc(CLS ? CLS.name : '211班')}</code>。<br><small>支持 jpg / png / gif / webp / mp4，按文件名排序</small></div></div>`;
+    showTools(true); return;
+  }
+  if (shuffle) slides.sort(() => Math.random() - .5);
+  idx = 0; paused = false; updateTools();
+  render(); showTools(false);
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+}
+function render() {
+  const s = slides[idx], st = $('#stage');
+  const el = document.createElement(s.type === 'video' ? 'video' : 'img');
+  el.src = s.url;
+  if (s.type === 'video') { el.autoplay = true; el.playsInline = true; el.onended = () => slideGo(1); }
+  st.appendChild(el);
+  const old = [...st.children].filter(x => x !== el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+  setTimeout(() => old.forEach(o => o.remove()), 900);
+  // 预加载下一张
+  const n = slides[(idx + 1) % slides.length]; if (n && n.type === 'image') new Image().src = n.url;
+  schedule(); tick();
+}
+function schedule() {
+  clearTimeout(timer);
+  if (paused || slides.length < 2 || slides[idx].type === 'video') return;
+  timer = setTimeout(() => slideGo(1), iv * 1000);
+}
+function slideGo(d) { if (!slides.length) return; idx = (idx + d + slides.length) % slides.length; render(); }
+function togglePause() { paused = !paused; updateTools(); schedule(); const v = $('#stage video.show'); if (v) paused ? v.pause() : v.play(); }
+function cycleInterval() { iv = IVS[(IVS.indexOf(iv) + 1) % IVS.length]; localStorage.setItem('xyz.screen.iv', iv); updateTools(); schedule(); }
+function toggleShuffle() { shuffle = !shuffle; localStorage.setItem('xyz.screen.shuffle', shuffle ? '1' : '0'); updateTools(); toast(shuffle ? '下次打开随机顺序' : '下次打开按文件名顺序'); }
+function updateTools() {
+  $('#playBtn').textContent = paused ? '▶ 继续' : '⏸ 暂停';
+  $('#ivBtn').textContent = `⏱ ${iv} 秒`;
+  $('#shufBtn').classList.toggle('on', shuffle);
+  $('#pausedBadge').style.display = paused ? 'block' : 'none';
+}
+let toolsTimer;
+function showTools(stay) {
+  $('#sTools').classList.remove('hide'); clearTimeout(toolsTimer);
+  if (!stay) toolsTimer = setTimeout(() => $('#sTools').classList.add('hide'), 4000);
+}
+function closeSlides() { clearTimeout(timer); slides = []; $('#stage').innerHTML = ''; show('home'); }
+// 触摸：左边三分之一上一张，右边三分之一下一张，中间呼出工具栏
+$('#stage').addEventListener('click', e => {
+  if (!slides.length) return;
+  const x = e.clientX / innerWidth;
+  if (x < .33) slideGo(-1); else if (x > .67) slideGo(1); else showTools(false);
+});
+// 翻页笔/键盘
+document.addEventListener('keydown', e => {
+  if (!$('#slides').classList.contains('on')) return;
+  if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); slideGo(1); }
+  else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); slideGo(-1); }
+  else if (e.key === 'Escape') closeSlides();
+  else if (e.key === 'p' || e.key === 'Enter') togglePause();
+});
+
+// ===== 随机点名 =====
+let roster = [], rolling = false;
+const absentKey = () => `xyz.absent.${CLS.id}.${today()}`;
+const getAbsent = () => new Set(JSON.parse(localStorage.getItem(absentKey()) || '[]'));
+function setAbsent(set) { localStorage.setItem(absentKey(), JSON.stringify([...set])); }
+async function openCall() {
+  if (!CLS) { toast('请先选择班级'); return; }
+  show('call'); $('#callTitle').textContent = `随机点名 · ${CLS.name}`;
+  $('#callStage').innerHTML = '<div class="hint">点下面的按钮开始</div>';
+  await loadRoster();
+}
+async function loadRoster(hits = []) {
+  const d = await api('GET', '/api/v1/screen/call?class_id=' + CLS.id);
+  roster = d.students;
+  const ab = getAbsent(), hitIds = new Set(hits);
+  const present = roster.filter(s => !ab.has(s.id));
+  const left = present.filter(s => !s.called).length;
+  $('#callInfo').textContent = roster.length ? `第 ${d.round} 轮 · 本轮还剩 ${left} 人 · 到 ${present.length} / ${roster.length}` : '';
+  $('#roster').innerHTML = roster.length ? roster.map(s => `<button data-id="${s.id}" class="${ab.has(s.id) ? 'absent' : hitIds.has(s.id) ? 'hit' : s.called ? 'called' : ''}">${esc(s.name)}</button>`).join('')
+    : '<div class="empty-roster" style="grid-column:1/-1">这个班还没有名单。<br>到「管理后台 → 学生名单」从 Excel 粘贴导入。</div>';
+  ['#d1', '#d2', '#d4'].forEach(b => $(b).disabled = !present.length);
+}
+$('#roster').onclick = e => {
+  const b = e.target.closest('button[data-id]'); if (!b || rolling) return;
+  const id = +b.dataset.id, ab = getAbsent();
+  ab.has(id) ? ab.delete(id) : ab.add(id); setAbsent(ab); loadRoster();
+};
+async function draw(n) {
+  if (rolling || !CLS) return;
+  const ab = getAbsent();
+  const pool = roster.filter(s => !ab.has(s.id));
+  if (!pool.length) return;
+  n = Math.min(n, pool.length);
+  rolling = true;
+  const size = n === 1 ? '' : n === 2 ? 'small' : 'tiny';
+  $('#callStage').innerHTML = Array.from({ length: n }, () => `<div class="namecard rolling ${size}"><div class="nm">　</div><div class="no"></div></div>`).join(n === 2 ? '<div style="font-size:8vh;font-weight:800;color:var(--gold)">VS</div>' : '');
+  const cards = [...document.querySelectorAll('.namecard')];
+  let req = api('POST', '/api/v1/screen/call', { class_id: CLS.id, count: n, exclude: [...ab] });
+  // 滚动动画：先快后慢，约 1.6 秒
+  let delay = 50, t0 = Date.now();
+  await new Promise(res => {
+    const step = () => {
+      cards.forEach(c => c.querySelector('.nm').textContent = pool[Math.floor(Math.random() * pool.length)].name);
+      if (Date.now() - t0 > 1600) return res();
+      delay *= 1.12; setTimeout(step, delay);
+    };
+    step();
+  });
+  try {
+    const r = await req;
+    r.picked.forEach((p, i) => {
+      const c = cards[i]; if (!c) return;
+      c.classList.remove('rolling'); c.classList.add('done');
+      c.querySelector('.nm').textContent = p.name;
+      c.querySelector('.no').textContent = (p.student_no ? '学号 ' + p.student_no + ' · ' : '') + `第 ${p.times} 次被点到`;
+    });
+    if (r.new_round) toast('全班都点过一遍了，开始新一轮');
+    await loadRoster(r.picked.map(p => p.id));
+  } catch (e) { toast(e.message); $('#callStage').innerHTML = `<div class="hint">${esc(e.message)}</div>`; }
+  rolling = false;
+}
+async function newRound() {
+  if (!CLS || !confirm('重新开始一轮？所有人都可以再被抽到。')) return;
+  await api('POST', '/api/v1/screen/call/reset', { class_id: CLS.id });
+  toast('已开始新一轮'); loadRoster();
+}
+
+// ===== 启动 =====
+(async () => {
+  tick(); updateTools();
+  try { const st = await api('GET', '/api/v1/auth/status'); $('#school').textContent = st.school || ''; } catch (e) {}
+  await loadClasses();
+  if (location.hash === '#slides') openSlides();
+  if (location.hash === '#call') openCall();
+})();
+</script>
+</body>
+</html>
